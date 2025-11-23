@@ -2,7 +2,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 
-def returnTroque(q1, q2, q3, q4):    
+def returnTorque(q1, q2, q3, q4):    
     Jac_geo_L_at_elbow_1 = np.array([[0, 0, 0, 0],
     [0, 0, 0, 0],
     [0, 0, 0, 0]])
@@ -85,7 +85,7 @@ if __name__ == "__main__":
                 q3 = -math.pi/2 -math.radians( j3)
                 q4 = -math.pi/2 -math.radians( j4)
 
-                trq = returnTroque(q1, q2, q3, q4)
+                trq = returnTorque(q1, q2, q3, q4)
                 
                                 
                 p_hand = np.array([
