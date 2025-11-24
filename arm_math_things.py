@@ -165,8 +165,8 @@ if __name__ == "__main__":
         static_config,
         q_bounds,
         desired_hand_position,
-        gradient_iterations=15, gradient_iterations_per_optimization=15, gradient_a = 0.01,
-        custom_optimization_iterations_per_gradient = 100, custom_optimization_step = 0.01
+        gradient_iterations=20, gradient_iterations_per_optimization=20, gradient_a = 0.01,
+        custom_optimization_iterations_per_gradient = 30, custom_optimization_step = 0.01
     )
     print(x)
     print(get_frame_at_hand(x['best_q'], static_config)['position'])
