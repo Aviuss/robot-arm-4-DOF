@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Robot arm 4 DOF - Raspberry pi</title>
+</head>
+<body>
+    <h1>Robot arm 4 DOF</h1>
+
+    <button id="helloBtn">Say Hello</button>
+
+    <p id="output"></p>
+
+    <script>
+
+        const output = document.getElementById("output");
+
+        document.getElementById("helloBtn").addEventListener("click", async () => {
+            const response = await fetch("/action/hello", {
+                method: "POST"
+            });
+            const data = await response.json();
+            output.textContent = data.message;
+        });
+
+    </script>
+</body>
+</html>
