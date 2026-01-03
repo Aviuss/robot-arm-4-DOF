@@ -1,4 +1,7 @@
 from flask import Flask, render_template, jsonify, request
+import threading
+from robot_loop import start_robot_loop
+
 
 app = Flask(__name__)
 
@@ -11,4 +14,18 @@ def hello_action():
     return jsonify({"message": "Hello world!"})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    robot_state = {
+        "joint_angles": [0, 0, 0, 0],
+        "enabled": False
+    }
+
+    state_lock = threading.Lock()
+
+    start_robot_loop(robot_state, state_lock)
+
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=True,
+        use_reloader=False
+    )
