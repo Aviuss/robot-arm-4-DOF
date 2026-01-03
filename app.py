@@ -14,14 +14,10 @@ def hello_action():
     return jsonify({"message": "Hello world!"})
 
 if __name__ == "__main__":
-    robot_state = {
-        "joint_angles": [0, 0, 0, 0],
-        "enabled": False
-    }
-
+    shared_state = {}
     state_lock = threading.Lock()
 
-    robot_loop.init(robot_state, state_lock)
+    robot_loop.init(shared_state, state_lock)
 
     app.run(
         host="0.0.0.0",

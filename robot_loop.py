@@ -2,20 +2,32 @@ import time
 import RPi.GPIO as GPIO
 import pigpio
 import threading
+import define_static
 
 
-def loop(pi, shared_state, lock):
-    '''with lock:
-        if shared_state["enabled"]:
-            angles = shared_state["joint_angles"].copy()
-        else:
-            angles = None'''
+
+def set_pulse(motor_q, pulse, global_state):
+    pin = global_state["q pinout"][motor_q]
+    bounds = global_state["q pulse restriction"][motor_q]
+    pi = global_state["variables"]["pi"]
+
+    if pin is None or bounds is None or pi is None:
+        print("Invalid data for setting pulse")
+        return
+
+    if pulse < bounds[0]:
+        pulse = bounds[0]
+    elif pulse > bounds[1]:
+        pulse = bounds[1]
+
+    pi.set_servo_pulsewidth(pin, pulse)
     
+
+def loop(global_state):
     pulse = 500
     increment = 20
-
     while True:
-        pi.set_servo_pulsewidth(13, pulse)
+        set_pulse("q5", pulse, global_state)
         pulse += increment
         if pulse >= 2500:
             increment = -abs(increment)
@@ -30,7 +42,7 @@ def loop(pi, shared_state, lock):
 
 
 
-def init(shared_state, lock):
+def init(shared_state, shared_lock):
     pi = pigpio.pi()
     tries = 0
     while not pi.connected:
@@ -43,16 +55,18 @@ def init(shared_state, lock):
         
     GPIO.setmode(GPIO.BCM)
 
-    def loopWithCleaning(pi, shared_state, lock):
+    global_state = define_static.define(shared_state, shared_lock, pi)
+
+    def loopWithCleaning(global_state):
         try:
-            loop(pi, shared_state, lock)
+            loop(global_state)
         except Exception as e:
             print("Error:", e)
         finally:
             GPIO.cleanup()
             pi.stop()
 
-    threading.Thread(target=loopWithCleaning, args=(pi, shared_state, lock), daemon=True).start()
+    threading.Thread(target=loopWithCleaning, args=(global_state,), daemon=True).start()
 
 if __name__ == "__main__":
     init({}, threading.Lock())
