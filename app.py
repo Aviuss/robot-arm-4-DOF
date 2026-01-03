@@ -1,6 +1,6 @@
 from flask import Flask, render_template, jsonify, request
 import threading
-from robot_loop import start_robot_loop
+import robot_loop
 
 
 app = Flask(__name__)
@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     state_lock = threading.Lock()
 
-    start_robot_loop(robot_state, state_lock)
+    robot_loop.init(robot_state, state_lock)
 
     app.run(
         host="0.0.0.0",
