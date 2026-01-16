@@ -44,7 +44,8 @@ def returnTorque(q1, q2, q3, q4):
     torque = np.transpose(np.array([0,0,0,0]))
 
     #engineMass = 50 * 0.001; # 40 grams
-    armSingularMass = 150 * 0.001; # in grams
+    woodMassPerCm = 55 / 100 * 0.001 # 55 grams per 100cm
+    armAdditionalMass = 50 * 0.001; # in grams; glues, and other parts
     
     torque = torque + np.dot(np.transpose(Jac_geo_L_at_elbow_1), np.transpose(np.array([0,0,56 * 0.001 * -9.81])))
     torque = torque + np.dot(np.transpose(Jac_geo_L_at_elbow_2), np.transpose(np.array([0,0,40 * 0.001 * -9.81])))
@@ -52,18 +53,18 @@ def returnTorque(q1, q2, q3, q4):
     torque = torque + np.dot(np.transpose(Jac_geo_L_at_hand), np.transpose(np.array([0,0,50 * 0.001 * -9.81])))
 
 
-    torque = torque + np.dot(np.transpose(Jac_geo_L_at_middle_of_l1), np.transpose(np.array([0,0,armSingularMass * -9.81])))
-    torque = torque + np.dot(np.transpose(Jac_geo_L_at_middle_of_l2), np.transpose(np.array([0,0,armSingularMass * -9.81])))
-    torque = torque + np.dot(np.transpose(Jac_geo_L_at_middle_of_l3), np.transpose(np.array([0,0,armSingularMass * -9.81])))
+    torque = torque + np.dot(np.transpose(Jac_geo_L_at_middle_of_l1), np.transpose(np.array([0,0,(L1 * 100 * woodMassPerCm + armAdditionalMass) * -9.81])))
+    torque = torque + np.dot(np.transpose(Jac_geo_L_at_middle_of_l2), np.transpose(np.array([0,0,(L2 * 100 * woodMassPerCm + armAdditionalMass) * -9.81])))
+    torque = torque + np.dot(np.transpose(Jac_geo_L_at_middle_of_l3), np.transpose(np.array([0,0,(L3 * 100 * woodMassPerCm + armAdditionalMass) * -9.81])))
 
     torque = torque*10.1972 # in kg cm 
     return torque
 
 
 if __name__ == "__main__":
-    L1 = 12 * 0.01 # in m
-    L2 = 10 * 0.01 # in m
-    L3 = 10 * 0.01 # in m
+    L1 = 20 * 0.01 # in m
+    L2 = 20 * 0.01 # in m
+    L3 = 15 * 0.01 # in m
     firstElbowOffset = 5 * 0.01 # in m
 
     joint1 = 0
@@ -116,8 +117,10 @@ if __name__ == "__main__":
     #ax.set_zlim(-180, 0)
     
     ax.scatter(0,0+firstElbowOffset*100, marker='o', color="black")
-    ax.set_xlim(-50, 50)
-    ax.set_ylim(-50, 50)
+    d = L1*100 + L2*100 + L3*100
+    d *= 1.2
+    ax.set_xlim(-d, d)
+    ax.set_ylim(-d, d)
     #ax.set_zlim(-50 * 0.01, 50 * 0.01)
 
     plt.show()

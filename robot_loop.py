@@ -4,8 +4,6 @@ import pigpio
 import threading
 import define_static
 
-
-
 def set_pulse(motor_q, pulse, global_state):
     pin = global_state["q pinout"][motor_q]
     bounds = global_state["q pulse restriction"][motor_q]
@@ -21,21 +19,38 @@ def set_pulse(motor_q, pulse, global_state):
         pulse = bounds[1]
 
     pi.set_servo_pulsewidth(pin, pulse)
-    
+
+def set_degrees(motor_q, degrees, global_state):
+    q_degrees_bounds = global_state["q degrees bounds"][motor_q]
+    set_position_lambda = global_state["set position lambda"][motor_q]
+
+    if q_degrees_bounds is None or set_position_lambda is None:
+        print("Invalid data for setting degrees")
+        return
+
+    if degrees < q_degrees_bounds[0]:
+        degrees = q_degrees_bounds[0]
+    elif degrees > q_degrees_bounds[1]:
+        degrees = q_degrees_bounds[1]
+
+    set_pulse(motor_q, set_position_lambda(degrees), global_state)
+
 
 def loop(global_state):
-    pulse = 500
-    increment = 20
+    min_v = -60
+    max_v = 60
+    degrees = min_v
+    increment = 1
     while True:
-        set_pulse("q5", pulse, global_state)
-        pulse += increment
-        if pulse >= 2500:
+        set_degrees("q1", degrees, global_state)
+        degrees += increment
+        if degrees >= max_v:
             increment = -abs(increment)
-            pulse = 2500
+            degrees = max_v
             time.sleep(0.5)
-        elif pulse <= 500:
+        elif degrees <= min_v:
             increment = abs(increment)
-            pulse = 500
+            degrees = min_v
             time.sleep(0.5)
             
         time.sleep(0.05)
