@@ -224,18 +224,17 @@ def numberical_solution(init_q_config, static_config, q_bounds, desired_hand_pos
 
 if __name__ == "__main__":
     static_config = {
-        "firstElbowOffset": 0, "L1": 10, "L2": 10, "L3": 7.5
+        "firstElbowOffset": 0, "L1": 20, "L2": 20, "L3": 10
     }
 
     init_q_config = np.array([0, 0, 0, 0]) # q1, q2, q3, q4    
     q_bounds = [
-        (deg2rad(-180), deg2rad(180)), # q1
-        (deg2rad(-180), deg2rad(180)), # q2
-        (deg2rad(-180), deg2rad(180)), # q3
-        (deg2rad(-180), deg2rad(180)), # q4
+        (deg2rad(-72), deg2rad(108)), # q1
+        (deg2rad(-19), deg2rad(181)), # q2
+        (deg2rad(-165.6), deg2rad(14.4)), # q3
+        (deg2rad(-177.75), deg2rad(2.25)), # q4
     ]
-
-    desired_hand_position = np.array([15, 0, 0])
+    desired_hand_position = np.array([30, 0, 0])
     
     x = numberical_solution(
         init_q_config,
@@ -246,5 +245,5 @@ if __name__ == "__main__":
         custom_optimization_iterations_per_gradient = 30, custom_optimization_step = 0.005
     )
     print(get_frame_at_hand(x['best_q'], static_config)['position'])
-    print(x, list(map(lambda x: rad2deg(x), x["best_q"])))
+    print(x, "\n", list(map(lambda x: round(rad2deg(x)*100)/100, x["best_q"])))
     robot_graph(x["best_q"], static_config)

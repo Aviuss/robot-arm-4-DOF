@@ -4,6 +4,8 @@ import pigpio
 import threading
 import define_static
 
+MOTOR_SPEED = 0.5
+
 def set_pulse(motor_q, pulse, global_state):
     pin = global_state["q pinout"][motor_q]
     bounds = global_state["q pulse restriction"][motor_q]
@@ -33,26 +35,47 @@ def set_degrees(motor_q, degrees, global_state):
     elif degrees > q_degrees_bounds[1]:
         degrees = q_degrees_bounds[1]
 
+    print(motor_q, degrees)
     set_pulse(motor_q, set_position_lambda(degrees), global_state)
+
+def update_motors(global_state):
+    with global_state["variables"]["shared"]["lock"]:
+        state = global_state["variables"]["shared"]["state"]
+        def handle_motor(q):        
+            if (state["desired"][q] != state["actual"][q]):
+                displacement = state["desired"][q] - state["actual"][q]
+                displacement = min(max(displacement, -MOTOR_SPEED), MOTOR_SPEED)
+                state["actual"][q] += displacement
+                set_degrees(q, state["actual"][q], global_state)
+
+        handle_motor("q1")
+        handle_motor("q2")
+        handle_motor("q3")
+        handle_motor("q4")
+        handle_motor("q5")
 
 
 def loop(global_state):
-    min_v = -60
-    max_v = 60
-    degrees = min_v
-    increment = 1
+    shared_lock = global_state["variables"]["shared"]["lock"]
+    shared_state = global_state["variables"]["shared"]["state"]
+    with shared_lock:
+        global_state["variables"]["shared"]["state"].clear()
+        global_state["variables"]["shared"]["state"].update({
+            "desired": { "q1": 0, "q2": 90, "q3": -45, "q4": -45, "q5": 0 },
+            "actual":  { "q1": 0, "q2": 90, "q3": -45, "q4": -45, "q5": 0 }
+        })
+        set_degrees("q1", shared_state["actual"]["q1"], global_state)
+        set_degrees("q2", shared_state["actual"]["q2"], global_state)
+        set_degrees("q3", shared_state["actual"]["q3"], global_state)
+        set_degrees("q4", shared_state["actual"]["q4"], global_state)
+        set_degrees("q5", shared_state["actual"]["q5"], global_state)
+
+
     while True:
-        set_degrees("q1", degrees, global_state)
-        degrees += increment
-        if degrees >= max_v:
-            increment = -abs(increment)
-            degrees = max_v
-            time.sleep(0.5)
-        elif degrees <= min_v:
-            increment = abs(increment)
-            degrees = min_v
-            time.sleep(0.5)
-            
+
+
+        
+        update_motors(global_state)
         time.sleep(0.05)
 
 
