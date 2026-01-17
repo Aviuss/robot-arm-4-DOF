@@ -3,10 +3,10 @@ import RPi.GPIO as GPIO
 import pigpio
 import threading
 import define_static
-from ik_solutions import numberical_solution, deg2rad, rad2deg
+from ik_solutions import numberical_solution, deg2rad, rad2deg, get_frame_at_hand
 import numpy as np
 
-MOTOR_SPEED = 10
+MOTOR_SPEED = 14
 DELTATIME = 0.01
 
 def set_pulse(motor_q, pulse, global_state):
@@ -107,6 +107,8 @@ def L_runAndApplyIK(shared_state, global_state, desired_hand_position):
         shared_state["desired"]["q2"] = degrees_q[1]
         shared_state["desired"]["q3"] = degrees_q[2]
         shared_state["desired"]["q4"] = degrees_q[3]
+        shared_state["prev_desired_hand_position"] = shared_state["desired_hand_position"].copy()            
+
 
 def L_init_on_loop(shared_state, global_state):
     global_state["variables"]["shared"]["state"].clear()
@@ -122,6 +124,8 @@ def L_init_on_loop(shared_state, global_state):
     set_degrees("q4", shared_state["actual"]["q4"], global_state)
     set_degrees("q5", shared_state["actual"]["q5"], global_state)
 
+
+
 def loop(global_state):
     shared_lock = global_state["variables"]["shared"]["lock"]
     shared_state = global_state["variables"]["shared"]["state"]
@@ -133,14 +137,10 @@ def loop(global_state):
             difference = np.linalg.norm(shared_state["prev_desired_hand_position"] - shared_state["desired_hand_position"])
             if (difference > 0.5):
                 print(shared_state["desired_hand_position"])
-
                 L_runAndApplyIK(shared_state, global_state, shared_state["desired_hand_position"])
-
-                shared_state["prev_desired_hand_position"] = shared_state["desired_hand_position"].copy()            
-
+                
         update_motors(global_state)
         time.sleep(DELTATIME)
-
 
 
 def init(shared_state, shared_lock):

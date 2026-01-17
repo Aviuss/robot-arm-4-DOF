@@ -2,43 +2,137 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Robot arm 4 DOF - Raspberry pi</title>
+    <title>Robot Arm 4 DOF Control</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .controls, .status, .manual {
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+        }
+        .controls h2, .status h2, .manual h2 {
+            margin-top: 0;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+        .controls button {
+            flex: 1 1 100px;
+            min-width: 80px;
+            padding: 10px;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .status div, .manual div {
+            margin: 5px 0;
+        }
+        .manual div {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .manual input[type="number"] {
+            width: 60px;
+            padding: 5px;
+        }
+        .manual button {
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 600px) {
+            .controls button {
+                flex: 1 1 45%;
+                font-size: 0.9rem;
+            }
+            .manual div {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>Robot arm 4 DOF</h1>
-    
-    <button id="xplus">x plus</button>
-    <button id="xminus">x minus</button>
 
+    <h1>Robot Arm 4 DOF Control</h1>
 
-    <button id="yplus">y plus</button>
-    <button id="yminus">y minus</button>
+    <div class="container">
+        <div class="controls">
+            <h2>Move Robot Arm in fixed axis</h2>
+            <button id="xplus">X +</button>
+            <button id="xminus">X -</button>
+            <button id="yplus">Y +</button>
+            <button id="yminus">Y -</button>
+            <button id="zminus">Z -</button>
+            <button id="zplus">Z +</button>
+        </div>
 
+        <div class="status">
+            <h2>Status</h2>
+            <div>Desired Position: X=<span id="desX">0</span>, Y=<span id="desY">0</span>, Z=<span id="desZ">0</span></div>
+            <div>Current Angles:
+                <span id="angle0">0</span>,
+                <span id="angle1">0</span>,
+                <span id="angle2">0</span>,
+                <span id="angle3">0</span>,
+                <span id="angle4">0</span>
+            </div>
+        </div>
 
-    <button id="zplus">z plus</button>
-    <button id="zminus">z minus</button>
-
+    </div>
 
     <script>
-
-        /*const output = document.getElementById("output");s
-        document.getElementById("helloBtn").addEventListener("click", async () => {
-            const response = await fetch("/action/hello", {
-                method: "POST"
+        ["xplus", "xminus", "yplus", "yminus", "zplus", "zminus"].forEach(id => {
+            document.getElementById(id).addEventListener("click", async () => {
+                try {
+                    const response = await fetch(`/action/${id}`, { method: "POST" });
+                    const data = await response.json();
+                } catch (err) {
+                    console.error(err);
+                }
             });
-            const data = await response.json();
-            output.textContent = data.message;
-        });*/
-
-        ["xplus", "xminus", "yplus", "yminus", "zplus", "zminus"].forEach(element => {            
-            document.getElementById(element).addEventListener("click", async () => {
-                const response = await fetch(`/action/${element}`, {
-                    method: "POST"
-                });
-            });
-
         });
 
+        setInterval(async () => {
+            const response = await fetch('/data/current', {
+                method: "GET",
+                headers: { "Content-Type": "application/json" }
+            })
+            const data = await response.json()
+            updateStatus(data)
+        }, 1000)
+
+        function updateStatus(data){
+            if(data.desiredPosition){
+                document.getElementById("desX").innerText = data.desiredPosition?.[0];
+                document.getElementById("desY").innerText = data.desiredPosition?.[1];
+                document.getElementById("desZ").innerText = data.desiredPosition?.[2];
+            }
+            if(data.currentAngles){
+                for(let i=0;i<5;i++){
+                    document.getElementById(`angle${i}`).innerText = data.currentAngles[i];
+                }
+            }
+        }
     </script>
+
 </body>
 </html>
