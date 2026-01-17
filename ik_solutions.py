@@ -1,8 +1,6 @@
 import numpy as np
 import math
 import random
-import matplotlib.pyplot as plt
-
 
 def deg2rad(deg):
     return deg * math.pi / 180
@@ -12,6 +10,8 @@ def rad2deg(rad):
 
 
 def robot_graph(q, static_config):
+    import matplotlib.pyplot as plt
+
     q1 = q[0]
     q2 = q[1]
     q3 = q[2]
@@ -157,12 +157,15 @@ def custom_optimize(starting_parameters, cost_func, bounds, iterations=200, step
 def numberical_solution(init_q_config, static_config, q_bounds, desired_hand_position,
                         gradient_iterations=10, gradient_iterations_per_optimization=15, gradient_a = 0.01,
                         custom_optimization_iterations_per_gradient = 100, custom_optimization_step = 0.01):
+    desired_hand_position[2] = -desired_hand_position[2] # idk, but it is flipped
     if gradient_iterations == 0:
         raise Exception("Must be grater than 0")
         return
 
     def cost_func(q_config):
-        return np.linalg.norm(desired_hand_position - get_frame_at_hand(q_config, static_config)['position'])
+        pos_cost = np.linalg.norm(desired_hand_position - get_frame_at_hand(q_config, static_config)['position'])
+        q_cost = np.linalg.norm(init_q_config - q_config)
+        return pos_cost * (q_cost ** (1/3))
 
     def clamp_to_bounds(q):
         res = []
@@ -203,7 +206,7 @@ def numberical_solution(init_q_config, static_config, q_bounds, desired_hand_pos
             iterations=custom_optimization_iterations_per_gradient,
             step_scale=custom_optimization_step
         )
-        print(best_solutions[i][1], "--->", c)
+        #print(best_solutions[i][1], "--->", c)
         best_solutions[i] = (q, c)
 
     best_idx = None
@@ -234,7 +237,7 @@ if __name__ == "__main__":
         (deg2rad(-165.6), deg2rad(14.4)), # q3
         (deg2rad(-177.75), deg2rad(2.25)), # q4
     ]
-    desired_hand_position = np.array([30, 0, 0])
+    desired_hand_position = np.array([30, 5, 5])
     
     x = numberical_solution(
         init_q_config,

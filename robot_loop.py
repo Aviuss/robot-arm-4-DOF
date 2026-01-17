@@ -3,8 +3,10 @@ import RPi.GPIO as GPIO
 import pigpio
 import threading
 import define_static
+from ik_solutions import numberical_solution, deg2rad, rad2deg
+import numpy as np
 
-MOTOR_SPEED = 0.5
+MOTOR_SPEED = 3
 
 def set_pulse(motor_q, pulse, global_state):
     pin = global_state["q pinout"][motor_q]
@@ -35,7 +37,6 @@ def set_degrees(motor_q, degrees, global_state):
     elif degrees > q_degrees_bounds[1]:
         degrees = q_degrees_bounds[1]
 
-    print(motor_q, degrees)
     set_pulse(motor_q, set_position_lambda(degrees), global_state)
 
 def update_motors(global_state):
@@ -54,6 +55,21 @@ def update_motors(global_state):
         handle_motor("q4")
         handle_motor("q5")
 
+def toIKVector(object):
+    return np.array([
+        deg2rad(object["q1"]),
+        deg2rad(object["q2"]),
+        deg2rad(object["q3"]),
+        deg2rad(object["q4"]),
+    ])
+
+def toIKBounds(global_state):
+    return [
+        (deg2rad(global_state["q degrees bounds"]["q1"][0]), deg2rad(global_state["q degrees bounds"]["q1"][1])),
+        (deg2rad(global_state["q degrees bounds"]["q2"][0]), deg2rad(global_state["q degrees bounds"]["q2"][1])),
+        (deg2rad(global_state["q degrees bounds"]["q3"][0]), deg2rad(global_state["q degrees bounds"]["q3"][1])),
+        (deg2rad(global_state["q degrees bounds"]["q4"][0]), deg2rad(global_state["q degrees bounds"]["q4"][1]))
+    ]
 
 def loop(global_state):
     shared_lock = global_state["variables"]["shared"]["lock"]
@@ -72,11 +88,25 @@ def loop(global_state):
 
 
     while True:
+        desired_hand_position = np.array([30, 0, 5])
 
+        with shared_lock:
+            ik_res = numberical_solution(
+                toIKVector(shared_state["actual"]),
+                global_state["lengths"],
+                toIKBounds(global_state),
+                desired_hand_position,
+                gradient_iterations=10, gradient_iterations_per_optimization=200, gradient_a = 0.001,
+                custom_optimization_iterations_per_gradient = 0, custom_optimization_step = 0.005
+            )
+            degrees_q = list(map(lambda x: rad2deg(x), ik_res["best_q"]))
+            shared_state["desired"]["q1"] = degrees_q[0]
+            shared_state["desired"]["q2"] = degrees_q[1]
+            shared_state["desired"]["q3"] = degrees_q[2]
+            shared_state["desired"]["q4"] = degrees_q[3]
 
-        
         update_motors(global_state)
-        time.sleep(0.05)
+        time.sleep(0.01)
 
 
 

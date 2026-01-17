@@ -1,6 +1,8 @@
 def define(shared_state, shared_lock, pi):
     global_state = {}
 
+    global_state["lengths"] = { "firstElbowOffset": 0, "L1": 20, "L2": 20, "L3": 10 }
+
     global_state["q pinout"] = {
         "q1": 19,
         "q2": 26,
