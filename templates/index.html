@@ -6,21 +6,37 @@
 </head>
 <body>
     <h1>Robot arm 4 DOF</h1>
+    
+    <button id="xplus">x plus</button>
+    <button id="xminus">x minus</button>
 
-    <button id="helloBtn">Say Hello</button>
 
-    <p id="output"></p>
+    <button id="yplus">y plus</button>
+    <button id="yminus">y minus</button>
+
+
+    <button id="zplus">z plus</button>
+    <button id="zminus">z minus</button>
+
 
     <script>
 
-        const output = document.getElementById("output");
-
+        /*const output = document.getElementById("output");s
         document.getElementById("helloBtn").addEventListener("click", async () => {
             const response = await fetch("/action/hello", {
                 method: "POST"
             });
             const data = await response.json();
             output.textContent = data.message;
+        });*/
+
+        ["xplus", "xminus", "yplus", "yminus", "zplus", "zminus"].forEach(element => {            
+            document.getElementById(element).addEventListener("click", async () => {
+                const response = await fetch(`/action/${element}`, {
+                    method: "POST"
+                });
+            });
+
         });
 
     </script>

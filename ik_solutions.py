@@ -157,7 +157,6 @@ def custom_optimize(starting_parameters, cost_func, bounds, iterations=200, step
 def numberical_solution(init_q_config, static_config, q_bounds, desired_hand_position,
                         gradient_iterations=10, gradient_iterations_per_optimization=15, gradient_a = 0.01,
                         custom_optimization_iterations_per_gradient = 100, custom_optimization_step = 0.01):
-    desired_hand_position[2] = -desired_hand_position[2] # idk, but it is flipped
     if gradient_iterations == 0:
         raise Exception("Must be grater than 0")
         return

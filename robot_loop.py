@@ -80,6 +80,7 @@ def L_runAndApplyIK(shared_state, global_state, desired_hand_position):
             gradient_iterations=10, gradient_iterations_per_optimization=200, gradient_a = 0.001,
             custom_optimization_iterations_per_gradient = 0, custom_optimization_step = 0.005
         )
+        print(ik_res["cost_q"])
         degrees_q = list(map(lambda x: rad2deg(x), ik_res["best_q"]))
         shared_state["desired"]["q1"] = degrees_q[0]
         shared_state["desired"]["q2"] = degrees_q[1]
@@ -91,7 +92,7 @@ def L_init_on_loop(shared_state, global_state):
     global_state["variables"]["shared"]["state"].update({
         "desired": { "q1": 0, "q2": 90, "q3": -45, "q4": -45, "q5": 0 },
         "actual":  { "q1": 0, "q2": 90, "q3": -45, "q4": -45, "q5": 0 },
-        "desired_hand_position": np.array([30, 0, 10]),
+        "desired_hand_position": np.array([30, 0, 15]),
         "prev_desired_hand_position": np.array([9999, 9999, 9999])
     })
     set_degrees("q1", shared_state["actual"]["q1"], global_state)
@@ -109,10 +110,11 @@ def loop(global_state):
     while True:
         with shared_lock:
             difference = np.linalg.norm(shared_state["prev_desired_hand_position"] - shared_state["desired_hand_position"])
+            print(shared_state["desired_hand_position"])
             if (difference > 0.5):
                 L_runAndApplyIK(shared_state, global_state, shared_state["desired_hand_position"])
-                shared_state["prev_desired_hand_position"] = shared_state["desired_hand_position"].copy()
-            
+
+                shared_state["prev_desired_hand_position"] = shared_state["desired_hand_position"].copy()            
 
         update_motors(global_state)
         time.sleep(0.1)
