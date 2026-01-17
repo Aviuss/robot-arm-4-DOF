@@ -1,6 +1,89 @@
 import numpy as np
 import math
 import random
+import matplotlib.pyplot as plt
+
+
+def deg2rad(deg):
+    return deg * math.pi / 180
+
+def rad2deg(rad):
+    return rad * 180 / math.pi
+
+
+def robot_graph(q, static_config):
+    q1 = q[0]
+    q2 = q[1]
+    q3 = q[2]
+    q4 = q[3]
+    L1 = static_config["L1"]
+    L2 = static_config["L2"]
+    L3 = static_config["L3"]
+    firstElbowOffset = static_config["firstElbowOffset"]
+
+    def rotz(theta):
+        return np.array([
+            [np.cos(theta), -np.sin(theta), 0, 0],
+            [np.sin(theta),  np.cos(theta), 0, 0],
+            [0,              0,             1, 0],
+            [0,              0,             0, 1]
+        ])
+
+    def roty(theta):
+        return np.array([
+            [ np.cos(theta), 0, np.sin(theta), 0],
+            [ 0,             1, 0,             0],
+            [-np.sin(theta), 0, np.cos(theta), 0],
+            [ 0,             0, 0,             1]
+        ])
+
+    def trans(x, y, z):
+        return np.array([
+            [1, 0, 0, x],
+            [0, 1, 0, y],
+            [0, 0, 1, z],
+            [0, 0, 0, 1]
+        ])
+
+
+    # Forward kinematics
+    T0 = np.eye(4)
+    T1 = T0 @ rotz(q1)
+    #frame_base_rotated_arm = simplify(frame_base * HomTrans(ROTATIONAL_MATRIX_Z(q1), [0;0;0]));
+    T2 = T1 @ trans(0, 0, firstElbowOffset) @ roty(q2)
+    #frame_at_elbow_1 = simplify(frame_base_rotated_arm * HomTrans(ROTATIONAL_MATRIX_Z(0), [0;0;firstElbowOffset]));
+    #frame_rotated_elbow_1 = simplify(frame_at_elbow_1 * HomTrans(ROTATIONAL_MATRIX_Y(q2), [0;0;0]));
+    T3 = T2 @ trans(L1, 0, 0) @ roty(q3)
+    #frame_at_elbow_2 = simplify(frame_rotated_elbow_1 * HomTrans(ROTATIONAL_MATRIX_Z(0), [L1;0;0]));
+    #frame_rotated_elbow_2 = simplify(frame_at_elbow_2 * HomTrans(ROTATIONAL_MATRIX_Y(q3), [0;0;0]));
+    T4 = T3 @ trans(L2, 0, 0) @ roty(q4)
+    #frame_at_elbow_3 = simplify(frame_rotated_elbow_2 * HomTrans(ROTATIONAL_MATRIX_Z(0), [L2;0;0]));
+    #frame_rotated_elbow_3 = simplify(frame_at_elbow_3 * HomTrans(ROTATIONAL_MATRIX_Y(q4), [0;0;0]));
+    T_hand = T4 @ trans(L3, 0, 0)
+    #frame_at_hand = simplify(frame_rotated_elbow_3 * HomTrans(ROTATIONAL_MATRIX_Z(0), [L3;0;0]))
+
+
+    # Collect joint positions
+    points = np.array([
+        T0[:3, 3],
+        T1[:3, 3],
+        T2[:3, 3],
+        T3[:3, 3],
+        T4[:3, 3],
+        T_hand[:3, 3]
+    ])
+
+    # Plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot(points[:,0], points[:,1], points[:,2], marker='o')
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title('Robot Hand Kinematic Chain')
+
+    plt.show()
 
 
 def get_frame_at_hand(q, static_config):
@@ -53,15 +136,10 @@ def custom_optimize(starting_parameters, cost_func, bounds, iterations=200, step
     x = starting_parameters.copy()
     best_cost = cost_func(x)
 
-    def sign(intval):
-        if intval >= 0:
-            return 1
-        return -1
-
     for _ in range(iterations):
         candidate = []
         for (xi, (a, b)) in zip(x, bounds):
-            step = step_scale * sign((random.random() - 0.5))
+            step = step_scale * (random.random() * 2  - 1)
             new_val = xi + step
 
             new_val = max(a, min(b, new_val))
@@ -144,30 +222,29 @@ def numberical_solution(init_q_config, static_config, q_bounds, desired_hand_pos
     }
 
 
-
 if __name__ == "__main__":
     static_config = {
-        "firstElbowOffset": 5, "L1": 10, "L2": 10, "L3": 10
+        "firstElbowOffset": 0, "L1": 10, "L2": 10, "L3": 7.5
     }
 
     init_q_config = np.array([0, 0, 0, 0]) # q1, q2, q3, q4    
     q_bounds = [
-        (0, 180), # q1
-        (0, 180), # q2
-        (0, 180), # q3
-        (0, 180)  # q4
+        (deg2rad(-180), deg2rad(180)), # q1
+        (deg2rad(-180), deg2rad(180)), # q2
+        (deg2rad(-180), deg2rad(180)), # q3
+        (deg2rad(-180), deg2rad(180)), # q4
     ]
 
-    desired_hand_position = np.array([5, 2, 1])
+    desired_hand_position = np.array([15, 0, 0])
     
     x = numberical_solution(
         init_q_config,
         static_config,
         q_bounds,
         desired_hand_position,
-        gradient_iterations=20, gradient_iterations_per_optimization=20, gradient_a = 0.01,
-        custom_optimization_iterations_per_gradient = 30, custom_optimization_step = 0.01
+        gradient_iterations=10, gradient_iterations_per_optimization=200, gradient_a = 0.001,
+        custom_optimization_iterations_per_gradient = 30, custom_optimization_step = 0.005
     )
-    print(x)
     print(get_frame_at_hand(x['best_q'], static_config)['position'])
-    
+    print(x, list(map(lambda x: rad2deg(x), x["best_q"])))
+    robot_graph(x["best_q"], static_config)
