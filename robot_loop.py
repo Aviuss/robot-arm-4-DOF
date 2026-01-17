@@ -6,7 +6,8 @@ import define_static
 from ik_solutions import numberical_solution, deg2rad, rad2deg
 import numpy as np
 
-MOTOR_SPEED = 3
+MOTOR_SPEED = 10
+DELTATIME = 0.01
 
 def set_pulse(motor_q, pulse, global_state):
     pin = global_state["q pinout"][motor_q]
@@ -39,21 +40,38 @@ def set_degrees(motor_q, degrees, global_state):
 
     set_pulse(motor_q, set_position_lambda(degrees), global_state)
 
+
 def update_motors(global_state):
     with global_state["variables"]["shared"]["lock"]:
         state = global_state["variables"]["shared"]["state"]
-        def handle_motor(q):        
-            if (state["desired"][q] != state["actual"][q]):
-                displacement = state["desired"][q] - state["actual"][q]
-                displacement = min(max(displacement, -MOTOR_SPEED), MOTOR_SPEED)
-                state["actual"][q] += displacement
-                set_degrees(q, state["actual"][q], global_state)
 
-        handle_motor("q1")
-        handle_motor("q2")
-        handle_motor("q3")
-        handle_motor("q4")
-        handle_motor("q5")
+        joints = ["q1", "q2", "q3", "q4", "q5"]
+
+        disp = {
+            q: state["desired"][q] - state["actual"][q]
+            for q in joints
+        }
+
+        times = [
+            abs(disp[q]) / MOTOR_SPEED if disp[q] != 0 else 0.0
+            for q in joints
+        ]
+
+        t_max = max(times)
+        if t_max <= 0:
+            return
+
+        for q in joints:
+            v = disp[q] / t_max
+            v = max(min(v, MOTOR_SPEED), -MOTOR_SPEED)
+            step = v * DELTATIME
+
+            if abs(step) > abs(disp[q]):
+                step = disp[q]
+
+            state["actual"][q] += step
+            set_degrees(q, state["actual"][q], global_state)
+
 
 def toIKVector(object):
     return np.array([
@@ -77,10 +95,13 @@ def L_runAndApplyIK(shared_state, global_state, desired_hand_position):
             global_state["lengths"],
             toIKBounds(global_state),
             desired_hand_position,
-            gradient_iterations=10, gradient_iterations_per_optimization=200, gradient_a = 0.001,
-            custom_optimization_iterations_per_gradient = 0, custom_optimization_step = 0.005
+            q_preffered = np.array([deg2rad(0), deg2rad(90), deg2rad(0), deg2rad(0)]),
+            gradient_iterations=50, gradient_iterations_per_optimization=200, gradient_a = 0.0001,
+            class_round_val = 3,
+            
+            take_max_for_scnd_optimisation = 10,
+            custom_optimization_iterations_per_gradient = 1000, custom_optimization_step = 0.05
         )
-        print(ik_res["cost_q"])
         degrees_q = list(map(lambda x: rad2deg(x), ik_res["best_q"]))
         shared_state["desired"]["q1"] = degrees_q[0]
         shared_state["desired"]["q2"] = degrees_q[1]
@@ -90,9 +111,9 @@ def L_runAndApplyIK(shared_state, global_state, desired_hand_position):
 def L_init_on_loop(shared_state, global_state):
     global_state["variables"]["shared"]["state"].clear()
     global_state["variables"]["shared"]["state"].update({
-        "desired": { "q1": 0, "q2": 90, "q3": -45, "q4": -45, "q5": 0 },
-        "actual":  { "q1": 0, "q2": 90, "q3": -45, "q4": -45, "q5": 0 },
-        "desired_hand_position": np.array([30, 0, 15]),
+        "desired": { "q1": 0, "q2": 90, "q3": -45, "q4": -45, "q5": 0.5 },
+        "actual":  { "q1": 0, "q2": 90, "q3": -45, "q4": -45, "q5": 0.5 },
+        "desired_hand_position": np.array([30, 0, -5]),
         "prev_desired_hand_position": np.array([9999, 9999, 9999])
     })
     set_degrees("q1", shared_state["actual"]["q1"], global_state)
@@ -110,14 +131,15 @@ def loop(global_state):
     while True:
         with shared_lock:
             difference = np.linalg.norm(shared_state["prev_desired_hand_position"] - shared_state["desired_hand_position"])
-            print(shared_state["desired_hand_position"])
             if (difference > 0.5):
+                print(shared_state["desired_hand_position"])
+
                 L_runAndApplyIK(shared_state, global_state, shared_state["desired_hand_position"])
 
                 shared_state["prev_desired_hand_position"] = shared_state["desired_hand_position"].copy()            
 
         update_motors(global_state)
-        time.sleep(0.1)
+        time.sleep(DELTATIME)
 
 
 

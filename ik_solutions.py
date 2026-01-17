@@ -62,7 +62,6 @@ def robot_graph(q, static_config):
     T_hand = T4 @ trans(L3, 0, 0)
     #frame_at_hand = simplify(frame_rotated_elbow_3 * HomTrans(ROTATIONAL_MATRIX_Z(0), [L3;0;0]))
 
-
     # Collect joint positions
     points = np.array([
         T0[:3, 3],
@@ -73,7 +72,6 @@ def robot_graph(q, static_config):
         T_hand[:3, 3]
     ])
 
-    # Plot
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.plot(points[:,0], points[:,1], points[:,2], marker='o')
@@ -83,7 +81,27 @@ def robot_graph(q, static_config):
     ax.set_zlabel('Z')
     ax.set_title('Robot Hand Kinematic Chain')
 
+    # 🔥 force equal scaling
+    x_limits = [points[:,0].min(), points[:,0].max()]
+    y_limits = [points[:,1].min(), points[:,1].max()]
+    z_limits = [points[:,2].min(), points[:,2].max()]
+
+    x_mid = np.mean(x_limits)
+    y_mid = np.mean(y_limits)
+    z_mid = np.mean(z_limits)
+
+    max_range = max(
+        x_limits[1] - x_limits[0],
+        y_limits[1] - y_limits[0],
+        z_limits[1] - z_limits[0]
+    ) / 2
+
+    ax.set_xlim(x_mid - max_range, x_mid + max_range)
+    ax.set_ylim(y_mid - max_range, y_mid + max_range)
+    ax.set_zlim(z_mid - max_range, z_mid + max_range)
+
     plt.show()
+
 
 
 def get_frame_at_hand(q, static_config):
@@ -145,7 +163,8 @@ def custom_optimize(starting_parameters, cost_func, bounds, iterations=200, step
             new_val = max(a, min(b, new_val))
             candidate.append(new_val)
 
-        c = cost_func(candidate)
+        candidate = np.array(candidate)
+        c = cost_func(candidate, False)
 
         if c < best_cost:
             best_cost = c
@@ -154,17 +173,28 @@ def custom_optimize(starting_parameters, cost_func, bounds, iterations=200, step
     return x, best_cost
 
 
-def numberical_solution(init_q_config, static_config, q_bounds, desired_hand_position,
+def numberical_solution(init_q_config, static_config, q_bounds, desired_hand_position, q_preffered,
                         gradient_iterations=10, gradient_iterations_per_optimization=15, gradient_a = 0.01,
-                        custom_optimization_iterations_per_gradient = 100, custom_optimization_step = 0.01):
+                        custom_optimization_iterations_per_gradient = 100, custom_optimization_step = 0.01, class_round_val = 5, take_max_for_scnd_optimisation = 20):
     if gradient_iterations == 0:
         raise Exception("Must be grater than 0")
         return
 
-    def cost_func(q_config):
+    
+    def class_round(integer):
+        return round(integer / class_round_val) * class_round_val
+
+    def cost_angle(q_config):
+        angle_cost = np.sum((q_config - q_preffered)**2)
+        return angle_cost
+
+    def cost_func(q_config, class_round_ok = True):
         pos_cost = np.linalg.norm(desired_hand_position - get_frame_at_hand(q_config, static_config)['position'])
-        q_cost = np.linalg.norm(init_q_config - q_config)
-        return pos_cost * (q_cost ** (1/3))
+        
+        if class_round_ok:
+            return class_round(pos_cost)
+
+        return pos_cost
 
     def clamp_to_bounds(q):
         res = []
@@ -182,8 +212,22 @@ def numberical_solution(init_q_config, static_config, q_bounds, desired_hand_pos
         iterations=gradient_iterations_per_optimization,
         alpha=gradient_a
     ))
-    found_c = cost_func(found_q)
-    best_solutions.append((found_q, found_c))
+    best_solutions.append([found_q, cost_func(found_q), cost_angle(found_q)])
+
+    if (best_solutions[0][1] == 0):
+        (q, c) = custom_optimize(
+            starting_parameters=best_solutions[0][0],
+            cost_func=cost_func,
+            bounds=q_bounds,
+            iterations=custom_optimization_iterations_per_gradient,
+            step_scale=custom_optimization_step
+        )
+
+        return {
+            "best_q": q,
+            "cost_q": c
+        } 
+
 
     for _ in range(gradient_iterations-1):
         found_q = clamp_to_bounds(gradient_optimization(
@@ -193,9 +237,12 @@ def numberical_solution(init_q_config, static_config, q_bounds, desired_hand_pos
             iterations=gradient_iterations_per_optimization,
             alpha=gradient_a
         ))
-        found_c = cost_func(found_q)
-        best_solutions.append((found_q, found_c))
+        
+        best_solutions.append([found_q, cost_func(found_q), cost_angle(found_q)])
 
+    best_solutions.sort(key=lambda x:[x[1], x[2]])
+
+    best_solutions = best_solutions[0: min(take_max_for_scnd_optimisation, len(best_solutions)) ]
 
     for i in range(len(best_solutions)):
         (q, c) = custom_optimize(
@@ -205,18 +252,30 @@ def numberical_solution(init_q_config, static_config, q_bounds, desired_hand_pos
             iterations=custom_optimization_iterations_per_gradient,
             step_scale=custom_optimization_step
         )
-        #print(best_solutions[i][1], "--->", c)
-        best_solutions[i] = (q, c)
+        best_solutions[i][1] = c
+        
 
     best_idx = None
     best_c = None
     for i in range(len(best_solutions)):
+        if best_solutions[i] == None:
+            continue
         if best_idx == None:
             best_idx = i
             best_c = best_solutions[i][1]
         if best_c > best_solutions[i][1]:
             best_idx = i
             best_c = best_solutions[i][1]
+
+    for i in range(len(best_solutions)):
+        if best_solutions[i] == None:
+            continue
+        print(list(map(lambda x:round(rad2deg(x)*10)/10, best_solutions[i][0])), round(best_solutions[i][1]*1000)/1000, end="")
+        if i == best_idx:
+            print(" chosen")
+        else:
+            print()
+
 
     return {
         "best_q": best_solutions[best_idx][0],
@@ -226,7 +285,7 @@ def numberical_solution(init_q_config, static_config, q_bounds, desired_hand_pos
 
 if __name__ == "__main__":
     static_config = {
-        "firstElbowOffset": 0, "L1": 20, "L2": 20, "L3": 10
+        "firstElbowOffset": 0, "L1": 20, "L2": 20, "L3": 16
     }
 
     init_q_config = np.array([0, 0, 0, 0]) # q1, q2, q3, q4    
@@ -236,15 +295,19 @@ if __name__ == "__main__":
         (deg2rad(-165.6), deg2rad(14.4)), # q3
         (deg2rad(-177.75), deg2rad(2.25)), # q4
     ]
-    desired_hand_position = np.array([30, 5, 5])
+    desired_hand_position = np.array([45, 0, 0])
     
     x = numberical_solution(
         init_q_config,
         static_config,
         q_bounds,
         desired_hand_position,
-        gradient_iterations=10, gradient_iterations_per_optimization=200, gradient_a = 0.001,
-        custom_optimization_iterations_per_gradient = 30, custom_optimization_step = 0.005
+        q_preffered = np.array([deg2rad(0), deg2rad(90), deg2rad(0), deg2rad(0)]),
+        gradient_iterations=50, gradient_iterations_per_optimization=200, gradient_a = 0.0001,
+        class_round_val = 3,
+        
+        take_max_for_scnd_optimisation = 10,
+        custom_optimization_iterations_per_gradient = 1000, custom_optimization_step = 0.05
     )
     print(get_frame_at_hand(x['best_q'], static_config)['position'])
     print(x, "\n", list(map(lambda x: round(rad2deg(x)*100)/100, x["best_q"])))
