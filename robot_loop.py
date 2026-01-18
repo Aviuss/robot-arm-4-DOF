@@ -79,7 +79,7 @@ def toIKVector(object):
         deg2rad(object["q2"]),
         deg2rad(object["q3"]),
         deg2rad(object["q4"]),
-    ])
+    ], dtype=float)
 
 def toIKBounds(global_state):
     return [
@@ -95,7 +95,7 @@ def L_runAndApplyIK(shared_state, global_state, desired_hand_position):
             global_state["lengths"],
             toIKBounds(global_state),
             desired_hand_position,
-            q_preffered = np.array([deg2rad(0), deg2rad(90), deg2rad(0), deg2rad(0)]),
+            q_preffered = np.array([deg2rad(0), deg2rad(90), deg2rad(0), deg2rad(0)], dtype=float),
             gradient_iterations=50, gradient_iterations_per_optimization=200, gradient_a = 0.0001,
             class_round_val = 3,
             
@@ -115,8 +115,8 @@ def L_init_on_loop(shared_state, global_state):
     global_state["variables"]["shared"]["state"].update({
         "desired": { "q1": 0, "q2": 90, "q3": -45, "q4": -45, "q5": 0.5 },
         "actual":  { "q1": 0, "q2": 90, "q3": -45, "q4": -45, "q5": 0.5 },
-        "desired_hand_position": np.array([30, 0, -5]),
-        "prev_desired_hand_position": np.array([9999, 9999, 9999])
+        "desired_hand_position": np.array([30, 0, -5], dtype=float),
+        "prev_desired_hand_position": np.array([9999, 9999, 9999], dtype=float)
     })
     set_degrees("q1", shared_state["actual"]["q1"], global_state)
     set_degrees("q2", shared_state["actual"]["q2"], global_state)
@@ -135,7 +135,7 @@ def loop(global_state):
     while True:
         with shared_lock:
             difference = np.linalg.norm(shared_state["prev_desired_hand_position"] - shared_state["desired_hand_position"])
-            if (difference > 0.5):
+            if (difference > 0.001):
                 print(shared_state["desired_hand_position"])
                 L_runAndApplyIK(shared_state, global_state, shared_state["desired_hand_position"])
                 

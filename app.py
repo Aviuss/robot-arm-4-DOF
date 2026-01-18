@@ -11,6 +11,32 @@ app = Flask(__name__)
 def index():
     return render_template("index.html")
 
+@app.route('/set_gripper', methods=['POST'])
+def set_gripper():
+    data = request.get_json()
+    
+    position = data.get('position') if data else None
+    if data == None:
+        return "", 400
+
+    with state_lock:
+        shared_state["desired"]["q5"] = max(min(position, 1), 0)
+
+    return "", 200
+
+@app.route('/set_speed', methods=['POST'])
+def set_speed():
+    global MOVE_INCREMENT
+    data = request.get_json()
+    
+    position = data.get('speed') if data else None
+    if data == None:
+        return "", 400
+
+    MOVE_INCREMENT = position
+
+    return "", 200
+
 def getCurrentData():
     data = { 
         "desiredPosition": [],

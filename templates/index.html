@@ -17,12 +17,12 @@
             flex-direction: column;
             gap: 20px;
         }
-        .controls, .status, .manual {
+        .controls, .status, .manual, .gripper, .speed {
             padding: 15px;
             border: 1px solid #ccc;
             border-radius: 10px;
         }
-        .controls h2, .status h2, .manual h2 {
+        h2 {
             margin-top: 0;
         }
         .controls {
@@ -39,7 +39,7 @@
             border-radius: 8px;
             cursor: pointer;
         }
-        .status div, .manual div {
+        .status div, .manual div, .gripper div, .speed div {
             margin: 5px 0;
         }
         .manual div {
@@ -52,12 +52,15 @@
             width: 60px;
             padding: 5px;
         }
-        .manual button {
-            padding: 10px 15px;
-            border-radius: 8px;
+        .manual button, .gripper input[type="range"], .speed input[type="range"] {
             cursor: pointer;
         }
+        .gripper label, .speed label {
+            display: block;
+            margin-bottom: 5px;
+        }
 
+        /* Responsive adjustments */
         @media (max-width: 600px) {
             .controls button {
                 flex: 1 1 45%;
@@ -69,10 +72,20 @@
             }
         }
     </style>
+
+
 </head>
 <body>
 
     <h1>Robot Arm 4 DOF Control</h1>
+
+    <div class="speed">
+        <h2>Arm Speed</h2>
+        <div>
+            <label for="speedSlider">Speed: <span id="speedValue">1.0</span></label>
+            <input type="range" id="speedSlider" min="0.1" max="10" step="0.1" value="1">
+        </div>
+    </div>
 
     <div class="container">
         <div class="controls">
@@ -85,6 +98,14 @@
             <button id="zplus">Z +</button>
         </div>
 
+    <div class="gripper">
+        <h2>End-Effector Gripper</h2>
+        <div>
+            <label for="gripperSlider">Gripper Position: <span id="gripperValue">0</span></label>
+            <input type="range" id="gripperSlider" min="0" max="1" step="0.01" value="0">
+        </div>
+    </div>
+
         <div class="status">
             <h2>Status</h2>
             <div>Desired Position: X=<span id="desX">0</span>, Y=<span id="desY">0</span>, Z=<span id="desZ">0</span></div>
@@ -93,7 +114,6 @@
                 <span id="angle1">0</span>,
                 <span id="angle2">0</span>,
                 <span id="angle3">0</span>,
-                <span id="angle4">0</span>
             </div>
         </div>
 
@@ -111,6 +131,40 @@
             });
         });
 
+        const gripperSlider = document.getElementById("gripperSlider");
+        const gripperValue = document.getElementById("gripperValue");
+
+        gripperSlider.addEventListener("input", () => {
+            const value = parseFloat(gripperSlider.value);
+            gripperValue.innerText = value.toFixed(2);
+            setGripper(value);
+        });
+
+        function setGripper(value) {
+            fetch(`/set_gripper`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ position: value })
+            }).catch(err => console.error(err));
+        }
+
+        const speedSlider = document.getElementById("speedSlider");
+        const speedValue = document.getElementById("speedValue");
+
+        speedSlider.addEventListener("input", () => {
+            const value = parseFloat(speedSlider.value);
+            speedValue.innerText = value.toFixed(1);
+            setSpeed(value);
+        });
+
+        function setSpeed(value) {
+            fetch(`/set_speed`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ speed: value })
+            }).catch(err => console.error(err));
+        }
+
         setInterval(async () => {
             const response = await fetch('/data/current', {
                 method: "GET",
@@ -127,7 +181,7 @@
                 document.getElementById("desZ").innerText = data.desiredPosition?.[2];
             }
             if(data.currentAngles){
-                for(let i=0;i<5;i++){
+                for(let i=0;i<4;i++){
                     document.getElementById(`angle${i}`).innerText = data.currentAngles[i];
                 }
             }
